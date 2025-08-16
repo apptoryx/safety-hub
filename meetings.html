@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safety Hub - Safety Meetings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<style>
+    nav .mobile-menu { display: none; }
+    nav .mobile-menu.active { display: block; }
+    .card {
+        background: #E2E8F0;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    }
+    .btn-primary {
+        background: #0D9488;
+        transition: background 0.3s ease, transform 0.3s ease;
+    }
+    .btn-primary:hover {
+        background: #F472B6;
+        transform: scale(1.05);
+    }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.5/dist/umd/supabase.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const supabase = window.supabase.createClient(
+            'https://kpxrzqxbjonucyxwanst.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtweHJ6cXhiam9udWN5eHdhbnN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNTcwNDgsImV4cCI6MjA3MDczMzA0OH0.2sXvSkH5_kChby0EDV4CK66adN6OvGm1Lz9jnXKZbpo'
+        );
+
+        const authBtn = document.getElementById('auth-btn');
+        const menuBtn = document.getElementById('menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        if (menuBtn) {
+            menuBtn.addEventListener('click', () => {
+                mobileMenu.classList.toggle('active');
+            });
+        }
+
+        supabase.auth.onAuthStateChange((event, session) => {
+            if (session) {
+                authBtn.textContent = 'Logout';
+                authBtn.onclick = () => supabase.auth.signOut().then(() => window.location.href = 'index.html');
+            } else {
+                authBtn.textContent = 'Login';
+                authBtn.onclick = () => window.location.href = 'auth.html';
+                window.location.href = 'auth.html';
+            }
+        });
+    });
+</script>
+<body class="bg-gray-50 font-sans">
+    <header class="bg-teal-600 text-white sticky top-0 z-10">
+        <nav class="container mx-auto p-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Safety Hub</h1>
+            <div class="hidden md:flex space-x-6" id="nav-links">
+                <a href="index.html" class="hover:text-coral-400 font-medium">Home</a>
+                <a href="dashboard.html" class="hover:text-coral-400 font-medium">Dashboard</a>
+                <a href="incidents.html" class="hover:text-coral-400 font-medium">Incidents</a>
+                <a href="observations.html" class="hover:text-coral-400 font-medium">Hazards</a>
+                <a href="inspections.html" class="hover:text-coral-400 font-medium">Inspections</a>
+                <a href="meetings.html" class="hover:text-coral-400 font-medium">Meetings</a>
+                <button id="auth-btn" class="btn-primary text-white px-4 py-2 rounded-lg">Login</button>
+            </div>
+            <button class="md:hidden text-2xl" id="menu-btn">☰</button>
+        </nav>
+        <div class="mobile-menu hidden container mx-auto p-4 bg-teal-600 text-white" id="mobile-menu">
+            <a href="index.html" class="block py-2 hover:text-coral-400">Home</a>
+            <a href="dashboard.html" class="block py-2 hover:text-coral-400">Dashboard</a>
+            <a href="incidents.html" class="block py-2 hover:text-coral-400">Incidents</a>
+            <a href="observations.html" class="block py-2 hover:text-coral-400">Hazards</a>
+            <a href="inspections.html" class="block py-2 hover:text-coral-400">Inspections</a>
+            <a href="meetings.html" class="block py-2 hover:text-coral-400">Meetings</a>
+        </div>
+    </header>
+    <main class="container mx-auto p-6">
+        <section class="card p-6 rounded-lg shadow-md">
+            <h2 class="text-2xl font-bold text-slate-800 mb-4">Safety Meetings</h2>
+            <p class="text-lg text-slate-600">Schedule safety meetings and log attendance to promote a culture of safety. Feature coming soon.</p>
+        </section>
+    </main>
+    <footer class="bg-teal-600 text-white text-center p-4">
+        <p>&copy; 2025 Construction Safety Hub. All rights reserved.</p>
+    </footer>
+</body>
+</html>

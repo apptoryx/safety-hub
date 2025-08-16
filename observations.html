@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safety Hub - Observations/Hazards Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.5/dist/umd/supabase.min.js"></script>
+
+    <style>
+        /* Keep your existing styles unchanged */
+        nav .mobile-menu { display: none; }
+        nav .mobile-menu.active { display: block; }
+        .card {
+            background: #E2E8F0;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background: #0D9488;
+            transition: background 0.3s ease, transform 0.3s ease;
+        }
+        .btn-primary:hover {
+            background: #F472B6;
+            transform: scale(1.05);
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #F472B6;
+            box-shadow: 0 0 0 2px rgba(244, 114, 182, 0.2);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #fff;
+            margin: 5% auto;
+            padding: 20px;
+            width: 90%;
+            max-width: 1200px;
+            border-radius: 8px;
+            position: relative;
+            overflow-y: auto;
+            max-height: 85vh;
+        }
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #333;
+        }
+        .form-group { margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; }
+        .form-group label { flex: 1 1 30%; min-width: 200px; font-weight: bold; font-family: Arial, sans-serif; font-size: 14px; }
+        .form-group input, .form-group select, .form-group textarea {
+            border-bottom: 2px solid #ddd;
+            padding: 10px 8px;
+            transition: border-color 0.3s;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            height: 40px;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-bottom-color: #0D9488; }
+        .score-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .score-table th, .score-table td { border: 1px solid #ddd; padding: 12px; text-align: left; vertical-align: top; }
+        .score-table th { background-color: #f2f2f2; font-weight: bold; }
+        .sub-area { margin-left: 20px; font-style: italic; }
+        .observations-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .observations-table th, .observations-table td {
+            border: 1px solid #ddd;
+            padding: 16px;
+            font-size: 14px;
+            vertical-align: top; /* Align content to top */
+        }
+        .observations-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .observations-table textarea {
+            min-height: 150px;
+            line-height: 1.5;
+            resize: none;
+            white-space: pre-wrap;
+            overflow: hidden;
+            border-bottom: 2px solid #ddd;
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+        }
+        img.preview {
+            max-width: 100px; /* Constrain width */
+            max-height: 100px; /* Constrain height */
+            display: block;
+            margin: 0; /* Remove default margin */
+            border: 1px solid #ddd;
+            padding: 5px;
+            background: #f9f9f9;
+            object-fit: contain; /* Ensure image fits within bounds without distortion */
+        }
+        #observation-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        #observation-table th, #observation-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        #observation-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        h2, h3 { color: #333; margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        p { margin-bottom: 15px; color: #555; }
+        .input-clone {
+            white-space: pre-wrap;
+            word-break: break-word;
+            padding: 6px 8px;
+            border-bottom: 2px solid #ddd;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.2;
+            background-color: white;
+            min-height: 30px;
+            margin-bottom: 4px;
+        }
+        .textarea-clone {
+            white-space: pre-wrap;
+            word-break: break-word;
+            padding: 8px;
+            border: 1px solid #ccc;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.2;
+            background-color: white;
+            min-height: 20px;
+            margin-bottom: 4px;
+        }
+        .label-clone {
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            padding-bottom: 4px;
+            margin-bottom: 4px;
+            line-height: 1.2;
+            display: block;
+        }
+        .file-input-container { position: relative; display: inline-block; }
+        .file-input-container input[type="file"] { width: 100px; }
+        .delete-row-btn {
+            background: none;
+            border: none;
+            color: #EF4444;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+        }
+        .delete-row-btn:hover { color: #B91C1C; }
+        .action-by-date { width: 120px; }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <header class="bg-teal-600 text-white sticky top-0 z-10">
+        <nav class="container mx-auto p-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Safety Hub</h1>
+            <div class="hidden md:flex space-x-6" id="nav-links">
+                <a href="index.html" class="hover:text-pink-400 font-medium">Home</a>
+                <a href="dashboard.html" class="hover:text-pink-400 font-medium">Dashboard</a>
+                <a href="incidents.html" class="hover:text-pink-400 font-medium">Incidents</a>
+                <a href="observations.html" class="hover:text-pink-400 font-medium">Observations/Hazards</a>
+                <a href="inspections.html" class="hover:text-pink-400 font-medium">Inspections</a>
+                <a href="meetings.html" class="hover:text-pink-400 font-medium">Meetings</a>
+                <button id="auth-btn" class="btn-primary text-white px-4 py-2 rounded-lg">Login</button>
+            </div>
+            <button class="md:hidden text-2xl" id="menu-btn">☰</button>
+        </nav>
+        <div class="mobile-menu hidden container mx-auto p-4 bg-teal-600 text-white" id="mobile-menu">
+            <a href="index.html" class="block py-2 hover:text-pink-400">Home</a>
+            <a href="dashboard.html" class="block py-2 hover:text-pink-400">Dashboard</a>
+            <a href="incidents.html" class="block py-2 hover:text-pink-400">Incidents</a>
+            <a href="observations.html" class="block py-2 hover:text-pink-400">Observations/Hazards</a>
+            <a href="inspections.html" class="block py-2 hover:text-pink-400">Inspections</a>
+            <a href="meetings.html" class="block py-2 hover:text-pink-400">Meetings</a>
+        </div>
+    </header>
+    <main class="container mx-auto p-6">
+        <section class="card p-6 rounded-lg shadow-md">
+            <h2 class="text-2xl font-bold text-slate-800 mb-4">Observations/Hazards Management</h2>
+            <div class="flex justify-end mb-4">
+                <button id="new-observation-btn" class="btn-primary text-white px-6 py-3 rounded-lg">New Observation</button>
+                <button id="export-csv-btn" class="btn-primary text-white px-6 py-3 rounded-lg ml-4">Export to CSV</button>
+            </div>
+            <table id="observation-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Project</th>
+                        <th>By</th>
+                        <th>SIR No</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="observation-table-body">
+                    <!-- Observations will be loaded here -->
+                </tbody>
+            </table>
+        </section>
+    </main>
+    <footer class="bg-teal-600 text-white text-center p-4">
+        <p>&copy; 2025 Construction Safety Hub. All rights reserved.</p>
+    </footer>
+    <script>
+        // Declare supabase globally
+        let supabase;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Debug the window.supabase object
+            console.log('Window supabase object:', window.supabase);
+            console.log('Window supabase keys:', Object.keys(window.supabase));
+            console.log('Window supabase createClient:', typeof window.supabase.createClient);
+
+            // Create Supabase client instance
+            try {
+                supabase = window.supabase.createClient(
+                    'https://kpxrzqxbjonucyxwanst.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtweHJ6cXhiam9udWN5eHdhbnN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNTcwNDgsImV4cCI6MjA3MDczMzA0OH0.2sXvSkH5_kChby0EDV4CK66adN6OvGm1Lz9jnXKZbpo'
+                );
+                console.log('Created supabase client:', supabase);
+            } catch (error) {
+                console.error('Error creating Supabase client:', error);
+                alert('Failed to create Supabase client. Check console for details.');
+                return;
+            }
+
+            // Verify the client has the from method
+            if (!supabase || typeof supabase.from !== 'function') {
+                console.error('Failed to initialize Supabase client. Available methods:', Object.keys(supabase));
+                alert('Failed to connect to Supabase. The client is not properly initialized with the from method.');
+                return;
+            }
+
+            console.log('Supabase client initialized with from method:', supabase);
+
+            const authBtn = document.getElementById('auth-btn');
+            if (!authBtn) {
+                console.error('Auth button not found');
+                return;
+            }
+            authBtn.textContent = 'Login';
+            authBtn.onclick = () => window.location.href = 'auth.html';
+
+            const menuBtn = document.getElementById('menu-btn');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const newObservationBtn = document.getElementById('new-observation-btn');
+            const exportCsvBtn = document.getElementById('export-csv-btn');
+
+            if (menuBtn) {
+                menuBtn.addEventListener('click', () => {
+                    mobileMenu.classList.toggle('active');
+                });
+            }
+
+            if (newObservationBtn) {
+                newObservationBtn.addEventListener('click', () => {
+                    openObservationModal(null);
+                });
+            } else {
+                console.error('New Observation button not found');
+            }
+
+            if (exportCsvBtn) {
+                exportCsvBtn.addEventListener('click', exportToCsv);
+            } else {
+                console.error('Export CSV button not found');
+            }
+
+            supabase.auth.onAuthStateChange((event, session) => {
+                if (session) {
+                    authBtn.textContent = 'Logout';
+                    authBtn.onclick = () => supabase.auth.signOut().then(() => window.location.href = 'index.html');
+                } else {
+                    authBtn.textContent = 'Login';
+                    authBtn.onclick = () => window.location.href = 'auth.html';
+                }
+            });
+
+            loadObservations();
+        });
+
+        async function loadObservations() {
+            if (!supabase || typeof supabase.from !== 'function') {
+                console.error('Supabase client is not available in loadObservations. Available methods:', Object.keys(supabase || {}));
+                alert('Supabase client is not initialized. Check console for details.');
+                return;
+            }
+
+            const tableBody = document.getElementById('observation-table-body');
+            if (!tableBody) {
+                console.error('Observation table body not found');
+                return;
+            }
+
+            try {
+                console.log('Fetching observations from Supabase...');
+                const { data, error } = await supabase
+                    .from('observations')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                console.log('Fetched data:', data);
+                tableBody.innerHTML = '';
+                data.forEach((record) => {
+                    const description = record.observations?.[0]?.description || 'Summary of observations';
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${record.date || 'N/A'}</td>
+                        <td>${record.project || 'N/A'}</td>
+                        <td>${record.by || 'N/A'}</td>
+                        <td>${record.sir_no || 'N/A'}</td>
+                        <td>${description}</td>
+                        <td>${record.status || 'Opened'}</td>
+                        <td><button class="btn-primary text-white px-2 py-1 rounded-lg edit-action" data-id="${record.id}">Edit</button></td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+                document.querySelectorAll('.edit-action').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const id = e.target.dataset.id;
+                        openObservationModal(id);
+                    });
+                });
+            } catch (error) {
+                console.error('Error loading observations:', error);
+                alert('Error loading observations. Please try again.');
+            }
+        }
+
+        async function openObservationModal(id) {
+            if (!supabase || typeof supabase.from !== 'function') {
+                console.error('Supabase client is not available in openObservationModal. Available methods:', Object.keys(supabase || {}));
+                alert('Supabase client is not initialized. Check console for details.');
+                return;
+            }
+
+            let data = {
+                project: 'TERRAZZO Residence – JVC',
+                by: 'Eyad Muhammed (HSE Engineer)',
+                date: new Date().toISOString().split('T')[0],
+                accompanied_by: 'Alex Maria john (HSE Officer), Rahul (HSE Officer)',
+                sir_no: 'HSE-SIR-015',
+                status: 'Opened',
+                next_visit: '',
+                handed_to: 'Yes',
+                findings_discussed: 'Yes',
+                signed_inspector: '',
+                signed_site: '',
+                observations: []
+            };
+
+            if (id) {
+                const { data: record, error } = await supabase
+                    .from('observations')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
+                if (error) {
+                    console.error('Error fetching observation:', error);
+                    alert('Error fetching observation data.');
+                    return;
+                }
+                data = record;
+                if (!data.date) data.date = new Date().toISOString().split('T')[0];
+            }
+
+            createModal(data, id);
+        }
+
+        function createModal(data, id) {
+            if (!supabase || typeof supabase.from !== 'function') {
+                console.error('Supabase client is not available in createModal. Available methods:', Object.keys(supabase || {}));
+                alert('Supabase client is not initialized. Check console for details.');
+                return;
+            }
+
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content" id="formContent">
+                    <span class="close">&times;</span>
+                    <h2>HSE ENGINEER PROJECT SAFETY INSPECTION REPORT</h2>
+                    <hr style="border: 0; border-top: 2px solid #0D9488; margin: 10px 0;">
+                    <form id="observationForm">
+                        <div class="form-group first-row">
+                            <label>Project: <input type="text" id="modal-project" value="${data.project}" required></label>
+                            <label>By: <input type="text" id="modal-by" value="${data.by}" required></label>
+                            <label>Date: <input type="date" id="modal-date" value="${data.date}" required></label>
+                        </div>
+                        <div class="form-group second-row">
+                            <label>Status: <select id="modal-status"><option ${data.status === 'Opened' ? 'selected' : ''}>Opened</option><option ${data.status === 'Closed' ? 'selected' : ''}>Closed</option></select></label>
+                            <label>SIR #: <input type="text" id="modal-sirNo" value="${data.sir_no}" required></label>
+                            <label>Accompanied By: <input type="text" id="modal-accompaniedBy" value="${data.accompanied_by}"></label>
+                        </div>
+                        <div class="form-group">
+                            <h3>Observations:</h3>
+                            <table id="observationsTableInForm" class="observations-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 20%;">Image</th>
+                                        <th style="width: 30%;">Description</th>
+                                        <th style="width: 30%;">Actions Required</th>
+                                        <th style="width: 20%;">Action By & Date Closed</th>
+                                        <th style="width: 5%;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                            <button type="button" onclick="addObservationRow()" class="btn-primary text-white px-4 py-2 rounded-lg mt-2">Add Observation Row</button>
+                        </div>
+                        <div class="form-group final-row">
+                            <label>Next Visit due: <input type="date" id="modal-nextVisit" value="${data.next_visit}"></label>
+                            <label>Handed to Project: <select id="modal-handedTo"><option ${data.handed_to === 'Yes' ? 'selected' : ''}>Yes</option><option ${data.handed_to === 'No' ? 'selected' : ''}>No</option></select></label>
+                            <label>Findings discussed: <select id="modal-findingsDiscussed"><option ${data.findings_discussed === 'Yes' ? 'selected' : ''}>Yes</option><option ${data.findings_discussed === 'No' ? 'selected' : ''}>No</option></select></label>
+                            <label>Signed Inspector: <input type="text" id="modal-signedInspector" value="${data.signed_inspector || ''}"></label>
+                            <label>Signed Site: <input type="text" id="modal-signedSite" value="${data.signed_site || ''}"></label>
+                        </div>
+                        <button type="button" id="modal-save" class="btn-primary text-white px-4 py-2 rounded-lg">Save</button>
+                        <button type="button" onclick="shareCurrent()" class="btn-primary text-white px-4 py-2 rounded-lg">Share</button>
+                        <button type="button" onclick="closeModal()" class="btn-primary text-white px-4 py-2 rounded-lg">Cancel</button>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.style.display = 'block';
+            document.querySelector('.close').addEventListener('click', () => modal.remove());
+
+            const tbody = document.querySelector('#observationsTableInForm tbody');
+            tbody.innerHTML = '';
+            if (data.observations && data.observations.length > 0) {
+                data.observations.forEach((obs, index) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><div class="file-input-container"><input type="file" accept="image/*" onchange="previewImage(this, ${index})" data-previous-url="${obs.image || ''}"></div><img class="preview" src="${obs.image || ''}" style="max-width: 100px; max-height: 100px;"></td>
+                        <td><textarea oninput="autoResize(this)" class="description-textarea">${obs.description || ''}</textarea></td>
+                        <td><textarea oninput="autoResize(this)" class="actions-required-textarea">${obs.actions_required || ''}</textarea></td>
+                        <td><input type="text" class="action-by-date" value="${obs.action_by_date || ''}"></td>
+                        <td><button type="button" class="delete-row-btn" onclick="deleteObservationRow(this)">🗑</button></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                document.querySelectorAll('textarea').forEach(textarea => autoResize(textarea));
+            } else {
+                addObservationRow();
+            }
+
+            if (!id) {
+                supabase.from('observations').select('id', { count: 'exact' }).then(({ count, error }) => {
+                    if (error) {
+                        console.error('Error fetching SIR count:', error);
+                        document.getElementById('modal-sirNo').value = 'HSE-SIR-001';
+                    } else {
+                        document.getElementById('modal-sirNo').value = 'HSE-SIR-' + ((count || 0) + 1).toString().padStart(3, '0');
+                    }
+                });
+            }
+
+            document.getElementById('modal-save').addEventListener('click', () => saveObservation(modal, id));
+        }
+
+        function autoResize(textarea) {
+            if (!textarea) return;
+            textarea.style.height = 'auto';
+            const scrollHeight = textarea.scrollHeight;
+            textarea.style.height = scrollHeight > 20 ? `${scrollHeight}px` : '20px';
+        }
+
+        function closeModal() {
+            const modal = document.querySelector('.modal');
+            if (modal) modal.remove();
+        }
+
+        function addObservationRow() {
+            const tbody = document.querySelector('#observationsTableInForm tbody');
+            if (!tbody) return;
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><div class="file-input-container"><input type="file" accept="image/*" onchange="previewImage(this)" data-previous-url=""></div><img class="preview" style="max-width: 100px; max-height: 100px;"></td>
+                <td><textarea oninput="autoResize(this)" class="description-textarea"></textarea></td>
+                <td><textarea oninput="autoResize(this)" class="actions-required-textarea"></textarea></td>
+                <td><input type="text" class="action-by-date"></td>
+                <td><button type="button" class="delete-row-btn" onclick="deleteObservationRow(this)">🗑</button></td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        function deleteObservationRow(button) {
+            if (button) button.closest('tr').remove();
+        }
+
+        function previewImage(input) {
+            if (!input) return;
+            const td = input.closest('td');
+            const img = td.querySelector('img.preview');
+            const previousUrl = input.getAttribute('data-previous-url') || '';
+            const file = input.files[0];
+            if (file && img) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    img.src = e.target.result;
+                    input.setAttribute('data-previous-url', previousUrl); // Preserve previous URL in data attribute
+                };
+                reader.readAsDataURL(file);
+            } else if (img) {
+                img.src = previousUrl || '';
+            }
+        }
+
+        function replaceInputsWithDivs(container) {
+            if (!container) return;
+            container.querySelectorAll('textarea').forEach(textarea => {
+                const div = document.createElement('div');
+                div.className = 'textarea-clone';
+                div.textContent = textarea.value;
+                div.style.height = textarea.style.height;
+                div.style.fontSize = '12px';
+                div.style.fontFamily = 'Arial, sans-serif';
+                textarea.parentNode.replaceChild(div, textarea);
+            });
+            container.querySelectorAll('input:not([type="file"])').forEach(input => {
+                const div = document.createElement('div');
+                div.className = 'input-clone';
+                div.textContent = input.value || '';
+                div.style.fontSize = '12px';
+                div.style.fontFamily = 'Arial, sans-serif';
+                input.parentNode.replaceChild(div, input);
+            });
+            container.querySelectorAll('select').forEach(select => {
+                const div = document.createElement('div');
+                div.className = 'input-clone';
+                div.textContent = select.options[select.selectedIndex]?.text || '';
+                div.style.fontSize = '12px';
+                div.style.fontFamily = 'Arial, sans-serif';
+                select.parentNode.replaceChild(div, select);
+            });
+            container.querySelectorAll('.form-group label').forEach(label => {
+                const div = document.createElement('div');
+                div.className = 'label-clone';
+                div.textContent = label.textContent;
+                div.style.fontWeight = 'bold';
+                div.style.color = '#0D9488'; // Teal color for labels
+                div.style.fontFamily = 'Arial, sans-serif';
+                label.parentNode.replaceChild(div, label);
+            });
+        }
+
+        async function saveObservation(modal, id) {
+            if (!supabase || typeof supabase.from !== 'function') {
+                console.error('Supabase client is not available in saveObservation. Available methods:', Object.keys(supabase || {}));
+                alert('Supabase client is not initialized. Check console for details.');
+                return;
+            }
+
+            const dateInput = document.getElementById('modal-date').value;
+            const date = dateInput || new Date().toISOString().split('T')[0];
+            if (!date) {
+                alert('Please provide a valid date.');
+                return;
+            }
+
+            const formData = {
+                project: document.getElementById('modal-project').value || 'Default Project',
+                by: document.getElementById('modal-by').value || 'Default User',
+                date: date,
+                accompanied_by: document.getElementById('modal-accompaniedBy').value || '',
+                sir_no: document.getElementById('modal-sirNo').value || `HSE-SIR-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+                status: document.getElementById('modal-status').value || 'Opened',
+                next_visit: document.getElementById('modal-nextVisit').value || '',
+                handed_to: document.getElementById('modal-handedTo').value || 'No',
+                findings_discussed: document.getElementById('modal-findingsDiscussed').value || 'No',
+                signed_inspector: document.getElementById('modal-signedInspector').value || '',
+                signed_site: document.getElementById('modal-signedSite').value || '',
+                observations: []
+            };
+
+            // Fetch original observations if editing
+            let originalObservations = [];
+            if (id) {
+                const { data: record, error } = await supabase
+                    .from('observations')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+                if (error) {
+                    console.error('Error fetching original observation:', error);
+                    alert('Error fetching original observation data.');
+                    return;
+                }
+                originalObservations = record.observations || [];
+            }
+
+            const rows = document.querySelectorAll('#observationsTableInForm tbody tr');
+            formData.observations = Array.from(rows).map((row, index) => {
+                const cells = row.cells;
+                const imageInput = cells[0].querySelector('input[type="file"]');
+                const img = cells[0].querySelector('img.preview');
+                const previousUrl = imageInput.getAttribute('data-previous-url') || (originalObservations[index]?.image || '');
+                let imageUrl = previousUrl;
+
+                if (imageInput.files && imageInput.files[0]) {
+                    const file = imageInput.files[0];
+                    const filePath = `${id || Date.now()}/${index}_${file.name}`;
+                    supabase.storage
+                        .from('observation-images')
+                        .upload(filePath, file, { upsert: false })
+                        .then(({ error }) => {
+                            if (error) console.error('Error uploading image:', error);
+                        })
+                        .catch(error => console.error('Upload failed:', error));
+                    const { data: urlData } = supabase.storage
+                        .from('observation-images')
+                        .getPublicUrl(filePath);
+                    imageUrl = urlData.publicUrl || imageUrl; // Fallback to previous URL if upload fails
+                }
+
+                return {
+                    image: imageUrl,
+                    description: cells[1].querySelector('textarea')?.value || (originalObservations[index]?.description || ''),
+                    actions_required: cells[2].querySelector('textarea')?.value || (originalObservations[index]?.actions_required || ''),
+                    action_by_date: cells[3].querySelector('input')?.value || (originalObservations[index]?.action_by_date || '')
+                };
+            });
+
+            try {
+                if (id) {
+                    const { error } = await supabase
+                        .from('observations')
+                        .update(formData)
+                        .eq('id', id);
+                    if (error) throw error;
+                    console.log('Observation updated:', id);
+                } else {
+                    const { data, error } = await supabase
+                        .from('observations')
+                        .insert(formData)
+                        .select('id')
+                        .single();
+                    if (error) throw error;
+                    id = data.id;
+                    console.log('Observation added:', id);
+                }
+
+                alert('Observation saved successfully!');
+                loadObservations();
+                modal.remove();
+            } catch (error) {
+                console.error('Error saving observation:', error);
+                alert('Error saving observation. Please try again.');
+            }
+        }
+
+        async function shareCurrent() {
+            if (!supabase || typeof supabase.from !== 'function') {
+                console.error('Supabase client is not available in shareCurrent. Available methods:', Object.keys(supabase || {}));
+                alert('Supabase client is not initialized. Check console for details.');
+                return;
+            }
+
+            const toEmail = prompt('Enter the To email of the concern engineer:');
+            if (!toEmail) return;
+            const ccEmail = prompt('Enter the CC email (optional):') || '';
+            const sirNo = document.getElementById('modal-sirNo').value || 'HSE-SIR-001';
+            const date = document.getElementById('modal-date').value || new Date().toISOString().split('T')[0];
+            const body = `Please take necessary action on this observation report. SIR #: ${sirNo}\n\nDownload the PDF here: `;
+
+            const formElement = document.getElementById('formContent');
+            if (!formElement) {
+                console.error('formContent element not found');
+                alert('Failed to generate PDF.');
+                return;
+            }
+
+            const clone = formElement.cloneNode(true);
+            // Add professional styling to the clone
+            clone.style.backgroundColor = '#F9FAFB'; // Light gray background
+            clone.style.padding = '20mm';
+            clone.style.width = '210mm'; // A4 width in mm
+            clone.style.margin = '0 auto';
+            clone.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+            document.body.appendChild(clone);
+
+            const images = clone.querySelectorAll('img.preview');
+            await Promise.all(Array.from(images).map(async (img) => {
+                if (img.src && !img.src.startsWith('data:')) {
+                    img.src = img.src;
+                }
+            }));
+
+            const textareas = clone.querySelectorAll('textarea');
+            textareas.forEach(textarea => {
+                autoResize(textarea);
+                textarea.style.height = textarea.scrollHeight + 'px';
+                textarea.style.fontFamily = 'Arial, sans-serif';
+                textarea.style.fontSize = '12px';
+            });
+
+            const observationsTable = clone.querySelector('#observationsTableInForm');
+            if (observationsTable) {
+                observationsTable.style.borderCollapse = 'collapse';
+                observationsTable.style.width = '100%';
+                observationsTable.style.tableLayout = 'fixed'; // Ensure fixed layout
+                observationsTable.style.marginTop = '10px';
+                clone.querySelectorAll('.observations-table th, .observations-table td').forEach(el => {
+                    el.style.padding = '10px';
+                    el.style.border = '1px solid #E5E7EB'; // Light gray border
+                    el.style.textAlign = 'left';
+                    el.style.fontFamily = 'Arial, sans-serif';
+                    el.style.fontSize = '12px';
+                    el.style.overflow = 'hidden'; // Prevent overflow
+                });
+                clone.querySelectorAll('.observations-table th').forEach(th => {
+                    th.style.backgroundColor = '#0D9488'; // Teal header
+                    th.style.color = '#FFFFFF'; // White text
+                    th.style.fontWeight = 'bold';
+                });
+                clone.querySelectorAll('.observations-table textarea').forEach(textarea => {
+                    autoResize(textarea);
+                    textarea.style.height = textarea.scrollHeight + 'px';
+                    textarea.style.minHeight = '20px';
+                    textarea.style.border = 'none';
+                });
+                clone.querySelectorAll('img.preview').forEach(img => {
+                    img.style.maxWidth = '100px'; // Constrain width
+                    img.style.maxHeight = '100px'; // Constrain height
+                    img.style.width = '100%'; // Ensure it fits the cell width
+                    img.style.height = 'auto'; // Maintain aspect ratio
+                    img.style.objectFit = 'contain'; // Contain within bounds
+                    img.style.display = 'block'; // Ensure proper flow
+                    img.style.margin = '0'; // Remove default margins
+                });
+                clone.querySelectorAll('.delete-row-btn').forEach(btn => btn.remove());
+                // Remove any previous URL text if present
+                clone.querySelectorAll('p').forEach(p => {
+                    if (p.textContent.startsWith('Previously:')) p.remove();
+                });
+            }
+
+            clone.querySelectorAll('h2').forEach(h2 => {
+                h2.style.fontSize = '18px';
+                h2.style.color = '#1E293B'; // Dark gray for header
+                h2.style.textAlign = 'center';
+                h2.style.marginBottom = '15px';
+                h2.style.fontFamily = 'Arial, sans-serif';
+                h2.style.fontWeight = 'bold';
+            });
+            clone.querySelectorAll('h3').forEach(h3 => {
+                h3.style.fontSize = '14px';
+                h3.style.color = '#64748B'; // Medium gray
+                h3.style.marginBottom = '10px';
+                h3.style.fontFamily = 'Arial, sans-serif';
+                h3.style.fontWeight = 'bold';
+            });
+            clone.querySelectorAll('p').forEach(p => {
+                p.style.fontSize = '12px';
+                p.style.color = '#1F2937'; // Dark text
+                p.style.marginBottom = '10px';
+                p.style.fontFamily = 'Arial, sans-serif';
+            });
+            clone.querySelectorAll('.form-group').forEach(group => {
+                group.style.display = 'flex';
+                group.style.justifyContent = 'space-between';
+                group.style.marginBottom = '15px';
+                group.style.alignItems = 'center';
+            });
+            clone.querySelectorAll('.first-row').forEach(row => {
+                row.style.justifyContent = 'space-between';
+            });
+            clone.querySelectorAll('.second-row').forEach(row => {
+                row.style.justifyContent = 'space-between';
+            });
+            clone.querySelectorAll('.final-row').forEach(row => {
+                row.style.justifyContent = 'space-between';
+            });
+            clone.querySelectorAll('label').forEach(label => {
+                label.style.fontWeight = 'bold';
+                label.style.color = '#0D9488'; // Teal for labels
+                label.style.marginRight = '10px';
+                label.style.whiteSpace = 'nowrap'; // Prevent wrapping
+            });
+            clone.querySelectorAll('hr').forEach(hr => {
+                hr.style.border = '0';
+                hr.style.borderTop = '2px solid #0D9488';
+                hr.style.margin = '10px 0';
+            });
+            clone.querySelectorAll('button').forEach(b => b.remove());
+            replaceInputsWithDivs(clone);
+
+            try {
+                const canvas = await html2canvas(clone, {
+                    scale: 4,
+                    useCORS: true,
+                    windowWidth: 210 * 3.78,
+                    windowHeight: clone.scrollHeight * 1.5 + 20
+                });
+                document.body.removeChild(clone);
+
+                const pdf = new window.jspdf.jsPDF({
+                    orientation: 'p',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+                const pdfWidth = pdf.internal.pageSize.getWidth() - 20;
+                const pdfHeight = pdf.internal.pageSize.getHeight() - 20;
+                const imgWidth = canvas.width;
+                const imgHeight = canvas.height;
+                const ratio = pdfWidth / imgWidth;
+                let positionY = 10;
+
+                pdf.setFillColor(13, 148, 136);
+                pdf.rect(0, 0, 210, 25, 'F');
+                pdf.setTextColor(255, 255, 255);
+                pdf.setFontSize(16);
+                pdf.text('HSE ENGINEER PROJECT SAFETY INSPECTION REPORT', 105, 15, { align: 'center' });
+
+                pdf.setDrawColor(13, 148, 136);
+                pdf.line(10, 25, 200, 25);
+
+                while (positionY < imgHeight * ratio) {
+                    const tempCanvas = document.createElement('canvas');
+                    const cropHeight = Math.min(imgHeight - (positionY - 10) / ratio, pdfHeight);
+                    tempCanvas.width = imgWidth;
+                    tempCanvas.height = cropHeight / ratio;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx.drawImage(canvas, 0, (positionY - 10) / ratio, imgWidth, cropHeight / ratio, 0, 0, imgWidth, cropHeight / ratio);
+                    pdf.addImage(tempCanvas.toDataURL('image/png'), 'PNG', 10, positionY, pdfWidth, cropHeight, undefined, 'SLOW');
+                    positionY += cropHeight;
+                    if (positionY < imgHeight * ratio) {
+                        pdf.addPage();
+                        positionY = 10;
+                    }
+                }
+
+                const pageCount = pdf.getNumberOfPages();
+                pdf.setTextColor(100, 116, 139);
+                pdf.setFontSize(10);
+                for (let i = 1; i <= pageCount; i++) {
+                    pdf.setPage(i);
+                    pdf.text(`Page ${i} of ${pageCount}`, 105, 297 - 10, { align: 'center' });
+                }
+
+                const pdfBlob = pdf.output('blob');
+                const timestamp = new Date().toISOString().replace(/[:.-]/g, '');
+                const filePath = `pdfs/${sirNo}_${date}_${timestamp}.pdf`;
+                const { error: uploadError } = await supabase.storage
+                    .from('observation-images')
+                    .upload(filePath, pdfBlob, {
+                        contentType: 'application/pdf',
+                        upsert: false
+                    });
+                if (uploadError) {
+                    console.error('Error uploading PDF:', uploadError);
+                    throw uploadError;
+                }
+
+                const { data: urlData } = supabase.storage
+                    .from('observation-images')
+                    .getPublicUrl(filePath);
+                const pdfUrl = urlData.publicUrl;
+
+                const fullBody = `${body}${pdfUrl}`;
+                window.location.href = `mailto:${toEmail}?cc=${ccEmail}&subject=${encodeURIComponent(`Observation Report for Action - ${sirNo}`)}&body=${encodeURIComponent(fullBody)}`;
+            } catch (error) {
+                console.error('Error generating PDF:', error);
+                alert('Failed to generate PDF. Please try again.');
+            }
+        }
+
+        async function exportToCsv() {
+            try {
+                const { data, error } = await supabase
+                    .from('observations')
+                    .select('*');
+
+                if (error) throw error;
+
+                // Flatten the observations array into individual rows
+                const flattenedData = data.flatMap(record => {
+                    return record.observations.map((obs, obsIndex) => ({
+                        ...record,
+                        observation_index: obsIndex + 1,
+                        image: obs.image || '',
+                        description: obs.description || '',
+                        actions_required: obs.actions_required || '',
+                        action_by_date: obs.action_by_date || ''
+                    }));
+                });
+
+                // Define CSV headers
+                const headers = [
+                    'id', 'project', 'by', 'date', 'accompanied_by', 'sir_no', 'status',
+                    'next_visit', 'handed_to', 'findings_discussed', 'signed_inspector',
+                    'signed_site', 'observation_index', 'image', 'description',
+                    'actions_required', 'action_by_date'
+                ];
+
+                // Convert to CSV
+                const csv = [
+                    headers.join(','),
+                    ...flattenedData.map(row =>
+                        headers.map(header => `"${(row[header] || '').toString().replace(/"/g, '""')}"`).join(',')
+                    )
+                ].join('\n');
+
+                // Create and download the CSV file
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'observations_export.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error exporting to CSV:', error);
+                alert('Failed to export data to CSV. Check console for details.');
+            }
+        }
+    </script>
+</body>
+</html>

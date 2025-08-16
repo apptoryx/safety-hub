@@ -1,0 +1,35 @@
+/* Custom styles to complement Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --teal-600: #0D9488;
+    --coral-400: #F472B6;
+    --slate-800: #1E293B;
+    --slate-600: #475569;
+    --gray-50: #F8FAFC;
+}
+
+.bg-teal-600 { background-color: var(--teal-600); }
+.text-coral-400 { color: var(--coral-400); }
+.text-slate-800 { color: var(--slate-800); }
+.text-slate-600 { color: var(--slate-600); }
+.bg-gray-50 { background-color: var(--gray-50); }
+
+nav .mobile-menu {
+    display: none;
+}
+nav .mobile-menu.active {
+    display: block;
+}
+ul li {
+    background: #E2E8F0;
+    padding: 12px;
+    border-radius: 6px;
+    transition: background 0.2s, transform 0.2s;
+}
+ul li:hover {
+    background: #CBD5E1;
+    transform: translateY(-2px);
+}
