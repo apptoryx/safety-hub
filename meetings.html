@@ -6,57 +6,456 @@
     <title>Safety Hub - Safety Meetings</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
-</head>
-<style>
-    nav .mobile-menu { display: none; }
-    nav .mobile-menu.active { display: block; }
-    .card {
-        background: #E2E8F0;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-    .card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-    }
-    .btn-primary {
-        background: #0D9488;
-        transition: background 0.3s ease, transform 0.3s ease;
-    }
-    .btn-primary:hover {
-        background: #F472B6;
-        transform: scale(1.05);
-    }
-</style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.5/dist/umd/supabase.min.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const supabase = window.supabase.createClient(
-            'https://kpxrzqxbjonucyxwanst.supabase.co',
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtweHJ6cXhiam9udWN5eHdhbnN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNTcwNDgsImV4cCI6MjA3MDczMzA0OH0.2sXvSkH5_kChby0EDV4CK66adN6OvGm1Lz9jnXKZbpo'
-        );
-
-        const authBtn = document.getElementById('auth-btn');
-        const menuBtn = document.getElementById('menu-btn');
-        const mobileMenu = document.getElementById('mobile-menu');
-
-        if (menuBtn) {
-            menuBtn.addEventListener('click', () => {
-                mobileMenu.classList.toggle('active');
-            });
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
+    <style>
+        nav .mobile-menu { display: none; }
+        nav .mobile-menu.active { display: block; }
+        .card {
+            background: #E2E8F0;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background: #0D9488;
+            transition: background 0.3s ease, transform 0.3s ease;
+        }
+        .btn-primary:hover {
+            background: #F472B6;
+            transform: scale(1.05);
+        }
+        .btn-secondary {
+            background: #6B7280;
+            transition: background 0.3s ease, transform 0.3s ease;
+        }
+        .btn-secondary:hover {
+            background: #4B5563;
+            transform: scale(1.05);
+        }
+        .btn-cancel {
+            background: #EF4444;
+            transition: background 0.3s ease, transform 0.3s ease;
+        }
+        .btn-cancel:hover {
+            background: #DC2626;
+            transform: scale(1.05);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 20;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: #fff;
+            border-radius: 0.375rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        .recipient-option {
+            padding: 8px;
+            cursor: pointer;
+        }
+        .recipient-option:hover {
+            background: #f1f5f9;
+        }
+        .recipient-option.selected {
+            background: #e0f2fe;
+        }
+        .main-layout {
+            display: flex;
+            gap: 2rem;
+        }
+        .calendar-container {
+            flex: 1;
+            min-width: 300px;
+        }
+        .category-btn {
+            margin: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            cursor: pointer;
+        }
+        .category-btn.active {
+            background: #0D9488;
+            color: white;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.5/dist/umd/supabase.min.js"></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const supabase = window.supabase.createClient(
+                'https://kpxrzqxbjonucyxwanst.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtweHJ6cXhiam9udWN5eHdhbnN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNTcwNDgsImV4cCI6MjA3MDczMzA0OH0.2sXvSkH5_kChby0EDV4CK66adN6OvGm1Lz9jnXKZbpo'
+            );
 
-        supabase.auth.onAuthStateChange((event, session) => {
-            if (session) {
-                authBtn.textContent = 'Logout';
-                authBtn.onclick = () => supabase.auth.signOut().then(() => window.location.href = 'index.html');
-            } else {
-                authBtn.textContent = 'Login';
-                authBtn.onclick = () => window.location.href = 'auth.html';
-                window.location.href = 'auth.html';
+            const authBtn = document.getElementById('auth-btn');
+            const menuBtn = document.getElementById('menu-btn');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const meetingForm = document.getElementById('meeting-form');
+            const notification = document.getElementById('notification');
+            const emailBtn = document.getElementById('email-btn');
+            const cancelBtn = document.getElementById('cancel-btn');
+            const modal = document.getElementById('user-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalSearch = document.getElementById('modal-search');
+            const modalSearchBtn = document.getElementById('modal-search-btn');
+            const modalClearBtn = document.getElementById('modal-clear-btn');
+            const modalUsersList = document.getElementById('modal-users-list');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+            const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+            const recipientsInput = document.getElementById('recipients');
+            const ccInput = document.getElementById('cc');
+            const bccInput = document.getElementById('bcc');
+            const calendarEl = document.getElementById('calendar');
+            const categoryButtons = document.querySelectorAll('.category-btn');
+
+            let allUsers = [];
+            let selectedEmails = { recipients: [], cc: [], bcc: [] };
+            let currentCategory = 'recipients';
+            let selectedMeetingId = null;
+
+            // Fetch all users
+            async function fetchAllUsers() {
+                const { data: users, error } = await supabase
+                    .from('users')
+                    .select('email, department');
+                if (error) {
+                    notification.textContent = 'Error fetching users: ' + error.message;
+                    notification.classList.add('text-red-600');
+                    return;
+                }
+                allUsers = users;
+                return users;
+            }
+
+            // Populate users in modal
+            function populateUsers(users) {
+                modalUsersList.innerHTML = '';
+                users.forEach(user => {
+                    const div = document.createElement('div');
+                    div.className = 'recipient-option';
+                    div.textContent = `${user.email} (${user.department})`;
+                    div.dataset.email = user.email;
+                    if (selectedEmails.recipients.includes(user.email) || selectedEmails.cc.includes(user.email) || selectedEmails.bcc.includes(user.email)) {
+                        div.classList.add('selected');
+                    }
+                    div.addEventListener('click', () => {
+                        if (selectedEmails[currentCategory].includes(user.email)) {
+                            selectedEmails[currentCategory] = selectedEmails[currentCategory].filter(email => email !== user.email);
+                            div.classList.remove('selected');
+                        } else {
+                            selectedEmails[currentCategory].push(user.email);
+                            div.classList.add('selected');
+                        }
+                        updateInputs();
+                    });
+                    modalUsersList.appendChild(div);
+                });
+            }
+
+            // Update input fields
+            function updateInputs() {
+                recipientsInput.value = selectedEmails.recipients.join(', ');
+                ccInput.value = selectedEmails.cc.join(', ');
+                bccInput.value = selectedEmails.bcc.join(', ');
+                emailBtn.textContent = `${Object.values(selectedEmails).flat().length} selected`;
+            }
+
+            // Open modal
+            async function openModal() {
+                modalTitle.textContent = 'Select Emails';
+                modalSearch.value = '';
+                const users = await fetchAllUsers();
+                populateUsers(users);
+                categoryButtons.forEach(btn => btn.classList.remove('active'));
+                document.querySelector(`.category-btn[data-category="${currentCategory}"]`).classList.add('active');
+                modal.classList.add('active');
+            }
+
+            // Modal event listeners
+            emailBtn.addEventListener('click', openModal);
+
+            modalSearchBtn.addEventListener('click', async () => {
+                const department = modalSearch.value.trim();
+                if (department === '') {
+                    populateUsers(allUsers);
+                    return;
+                }
+                const { data: filteredUsers, error } = await supabase
+                    .from('users')
+                    .select('email, department')
+                    .ilike('department', `%${department}%`);
+                if (error) {
+                    notification.textContent = 'Error searching users: ' + error.message;
+                    notification.classList.add('text-red-600');
+                    setTimeout(() => {
+                        notification.textContent = '';
+                        notification.classList.remove('text-red-600');
+                    }, 3000);
+                    return;
+                }
+                populateUsers(filteredUsers);
+            });
+
+            modalClearBtn.addEventListener('click', () => {
+                modalSearch.value = '';
+                populateUsers(allUsers);
+            });
+
+            modalCloseBtn.addEventListener('click', () => {
+                modal.classList.remove('active');
+            });
+
+            modalConfirmBtn.addEventListener('click', () => {
+                updateInputs();
+                modal.classList.remove('active');
+            });
+
+            categoryButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    currentCategory = btn.dataset.category;
+                    categoryButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    populateUsers(allUsers); // Refresh to reflect current category selection
+                });
+            });
+
+            // Initialize calendar
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                events: async function(fetchInfo, successCallback) {
+                    const { data: meetings, error } = await supabase
+                        .from('meetings')
+                        .select('*');
+                    if (error) {
+                        console.error('Error fetching meetings:', error.message);
+                        return;
+                    }
+                    const events = meetings.map(meeting => ({
+                        id: meeting.id,
+                        title: meeting.title,
+                        start: `${meeting.date}T${meeting.time}`,
+                        allDay: false,
+                        backgroundColor: meeting.status === 'cancelled' ? '#EF4444' : '#0D9488',
+                        borderColor: meeting.status === 'cancelled' ? '#DC2626' : '#0D9488'
+                    }));
+                    successCallback(events);
+                },
+                eventClick: async function(info) {
+                    selectedMeetingId = info.event.id;
+                    const { data: meeting, error } = await supabase
+                        .from('meetings')
+                        .select('*')
+                        .eq('id', selectedMeetingId)
+                        .single();
+                    if (error) {
+                        notification.textContent = 'Error loading meeting: ' + error.message;
+                        notification.classList.add('text-red-600');
+                        setTimeout(() => {
+                            notification.textContent = '';
+                            notification.classList.remove('text-red-600');
+                        }, 3000);
+                        return;
+                    }
+                    document.getElementById('title').value = meeting.title || '';
+                    document.getElementById('date').value = meeting.date || '';
+                    document.getElementById('time').value = meeting.time || '';
+                    document.getElementById('location').value = meeting.location || '';
+                    document.getElementById('agenda').value = meeting.agenda || '';
+                    selectedEmails.recipients = meeting.recipients ? meeting.recipients.split(', ') : [];
+                    selectedEmails.cc = meeting.cc ? meeting.cc.split(', ') : [];
+                    selectedEmails.bcc = meeting.bcc ? meeting.bcc.split(', ') : [];
+                    updateInputs();
+                }
+            });
+            calendar.render();
+
+            if (menuBtn) {
+                menuBtn.addEventListener('click', () => {
+                    mobileMenu.classList.toggle('active');
+                });
+            }
+
+            supabase.auth.onAuthStateChange((event, session) => {
+                if (session) {
+                    authBtn.textContent = 'Logout';
+                    authBtn.onclick = () => supabase.auth.signOut().then(() => window.location.href = 'index.html');
+                } else {
+                    authBtn.textContent = 'Login';
+                    authBtn.onclick = () => window.location.href = 'auth.html';
+                    window.location.href = 'auth.html';
+                }
+            });
+
+            if (meetingForm) {
+                meetingForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(meetingForm);
+
+                    if (selectedEmails.recipients.length === 0) {
+                        notification.textContent = 'Please select at least one recipient.';
+                        notification.classList.add('text-red-600');
+                        setTimeout(() => {
+                            notification.textContent = '';
+                            notification.classList.remove('text-red-600');
+                        }, 3000);
+                        return;
+                    }
+
+                    const meetingData = {
+                        title: formData.get('title'),
+                        date: formData.get('date'),
+                        time: formData.get('time'),
+                        location: formData.get('location'),
+                        agenda: formData.get('agenda'),
+                        created_by: (await supabase.auth.getUser()).data.user.email,
+                        recipients: selectedEmails.recipients.join(', '),
+                        cc: selectedEmails.cc.join(', '),
+                        bcc: selectedEmails.bcc.join(', '),
+                        status: 'scheduled'
+                    };
+
+                    console.log('Meeting Data:', meetingData);
+
+                    const { data, error } = await supabase
+                        .from('meetings')
+                        .insert([meetingData]);
+
+                    if (error) {
+                        notification.textContent = `Error scheduling meeting: ${error.message} (Status: ${error.status})`;
+                        notification.classList.add('text-red-600');
+                        console.error('Insert Error:', error);
+                        setTimeout(() => {
+                            notification.textContent = '';
+                            notification.classList.remove('text-red-600');
+                        }, 3000);
+                        return;
+                    }
+
+                    const subject = encodeURIComponent(`Safety Meeting: ${meetingData.title}`);
+                    const body = encodeURIComponent(
+                        `Dear Team,\n\n` +
+                        `You are invited to a safety meeting scheduled as follows:\n\n` +
+                        `Title: ${meetingData.title}\n` +
+                        `Date: ${meetingData.date}\n` +
+                        `Time: ${meetingData.time}\n` +
+                        `Location: ${meetingData.location}\n` +
+                        `Agenda: ${meetingData.agenda}\n\n` +
+                        `Organized by: ${meetingData.created_by}\n\n` +
+                        `Please confirm your attendance.\n` +
+                        `Best regards,\nSafety Hub Team`
+                    );
+
+                    const mailtoLink = `mailto:${selectedEmails.recipients.join(',')}?cc=${selectedEmails.cc.join(',')}&bcc=${selectedEmails.bcc.join(',')}&subject=${subject}&body=${body}`;
+                    window.location.href = mailtoLink;
+
+                    notification.textContent = 'Meeting scheduled and email client opened.';
+                    notification.classList.add('text-green-600');
+                    meetingForm.reset();
+                    selectedEmails = { recipients: [], cc: [], bcc: [] };
+                    updateInputs();
+                    calendar.refetchEvents();
+
+                    setTimeout(() => {
+                        notification.textContent = '';
+                        notification.classList.remove('text-green-600', 'text-red-600');
+                    }, 3000);
+                });
+
+                cancelBtn.addEventListener('click', async () => {
+                    if (!selectedMeetingId) {
+                        notification.textContent = 'Please select a meeting to cancel.';
+                        notification.classList.add('text-red-600');
+                        setTimeout(() => {
+                            notification.textContent = '';
+                            notification.classList.remove('text-red-600');
+                        }, 3000);
+                        return;
+                    }
+
+                    const { data: meeting, error: fetchError } = await supabase
+                        .from('meetings')
+                        .select('*')
+                        .eq('id', selectedMeetingId)
+                        .single();
+                    if (fetchError || !meeting) {
+                        notification.textContent = 'Error fetching meeting: ' + (fetchError?.message || 'Meeting not found');
+                        notification.classList.add('text-red-600');
+                        setTimeout(() => {
+                            notification.textContent = '';
+                            notification.classList.remove('text-red-600');
+                        }, 3000);
+                        return;
+                    }
+
+                    const { error: updateError } = await supabase
+                        .from('meetings')
+                        .update({ status: 'cancelled' })
+                        .eq('id', selectedMeetingId);
+
+                    if (updateError) {
+                        notification.textContent = `Error cancelling meeting: ${updateError.message} (Status: ${updateError.status})`;
+                        notification.classList.add('text-red-600');
+                        console.error('Update Error:', updateError);
+                        setTimeout(() => {
+                            notification.textContent = '';
+                            notification.classList.remove('text-red-600');
+                        }, 3000);
+                        return;
+                    }
+
+                    const cancelSubject = encodeURIComponent(`Cancelled: Safety Meeting - ${meeting.title}`);
+                    const cancelBody = encodeURIComponent(
+                        `Dear Team,\n\n` +
+                        `The following safety meeting has been cancelled:\n\n` +
+                        `Title: ${meeting.title}\n` +
+                        `Date: ${meeting.date}\n` +
+                        `Time: ${meeting.time}\n` +
+                        `Location: ${meeting.location}\n` +
+                        `Agenda: ${meeting.agenda}\n\n` +
+                        `Organized by: ${meeting.created_by}\n\n` +
+                        `We apologize for any inconvenience.\n` +
+                        `Best regards,\nSafety Hub Team`
+                    );
+
+                    const cancelMailtoLink = `mailto:${meeting.recipients}?cc=${meeting.cc}&bcc=${meeting.bcc}&subject=${cancelSubject}&body=${cancelBody}`;
+                    window.location.href = cancelMailtoLink;
+
+                    notification.textContent = 'Meeting cancelled and cancellation email sent.';
+                    notification.classList.add('text-green-600');
+                    meetingForm.reset();
+                    selectedMeetingId = null;
+                    selectedEmails = { recipients: [], cc: [], bcc: [] };
+                    updateInputs();
+                    calendar.refetchEvents();
+
+                    setTimeout(() => {
+                        notification.textContent = '';
+                        notification.classList.remove('text-green-600', 'text-red-600');
+                    }, 3000);
+                });
             }
         });
-    });
-</script>
+    </script>
+</head>
 <body class="bg-gray-50 font-sans">
     <header class="bg-teal-600 text-white sticky top-0 z-10">
         <nav class="container mx-auto p-4 flex justify-between items-center">
@@ -65,7 +464,7 @@
                 <a href="index.html" class="hover:text-coral-400 font-medium">Home</a>
                 <a href="dashboard.html" class="hover:text-coral-400 font-medium">Dashboard</a>
                 <a href="incidents.html" class="hover:text-coral-400 font-medium">Incidents</a>
-                <a href="observations.html" class="hover:text-coral-400 font-medium">Hazards</a>
+                <a href="observations.html" class="hover:text-coral-400 font-medium">Observation</a>
                 <a href="inspections.html" class="hover:text-coral-400 font-medium">Inspections</a>
                 <a href="meetings.html" class="hover:text-coral-400 font-medium">Meetings</a>
                 <button id="auth-btn" class="btn-primary text-white px-4 py-2 rounded-lg">Login</button>
@@ -76,17 +475,79 @@
             <a href="index.html" class="block py-2 hover:text-coral-400">Home</a>
             <a href="dashboard.html" class="block py-2 hover:text-coral-400">Dashboard</a>
             <a href="incidents.html" class="block py-2 hover:text-coral-400">Incidents</a>
-            <a href="observations.html" class="block py-2 hover:text-coral-400">Hazards</a>
+            <a href="observations.html" class="block py-2 hover:text-coral-400">Observation</a>
             <a href="inspections.html" class="block py-2 hover:text-coral-400">Inspections</a>
             <a href="meetings.html" class="block py-2 hover:text-coral-400">Meetings</a>
         </div>
     </header>
-    <main class="container mx-auto p-6">
-        <section class="card p-6 rounded-lg shadow-md">
-            <h2 class="text-2xl font-bold text-slate-800 mb-4">Safety Meetings</h2>
-            <p class="text-lg text-slate-600">Schedule safety meetings and log attendance to promote a culture of safety. Feature coming soon.</p>
+    <main class="container mx-auto p-6 main-layout">
+        <section class="card p-6 rounded-lg shadow-md flex-1">
+            <h2 class="text-2xl font-bold text-slate-800 mb-4">Schedule Safety Meeting</h2>
+            <p class="text-lg text-slate-600 mb-6">Schedule a safety meeting and notify selected team members via email.</p>
+            <div id="notification" class="mb-4"></div>
+            <form id="meeting-form" class="space-y-4">
+                <div>
+                    <label for="title" class="block text-sm font-medium text-slate-700">Meeting Title</label>
+                    <input type="text" id="title" name="title" required class="mt-1 p-2 w-full border rounded-md focus:ring-teal-500 focus:border-teal-500">
+                </div>
+                <div>
+                    <label for="date" class="block text-sm font-medium text-slate-700">Date</label>
+                    <input type="date" id="date" name="date" required class="mt-1 p-2 w-full border rounded-md focus:ring-teal-500 focus:border-teal-500">
+                </div>
+                <div>
+                    <label for="time" class="block text-sm font-medium text-slate-700">Time</label>
+                    <input type="time" id="time" name="time" required class="mt-1 p-2 w-full border rounded-md focus:ring-teal-500 focus:border-teal-500">
+                </div>
+                <div>
+                    <label for="location" class="block text-sm font-medium text-slate-700">Location</label>
+                    <input type="text" id="location" name="location" required class="mt-1 p-2 w-full border rounded-md focus:ring-teal-500 focus:border-teal-500">
+                </div>
+                <div>
+                    <label for="recipients" class="block text-sm font-medium text-slate-700">Emails</label>
+                    <div class="flex space-x-2">
+                        <input type="text" id="recipients" name="recipients" readonly class="mt-1 p-2 w-full border rounded-md focus:ring-teal-500 focus:border-teal-500" placeholder="Recipients">
+                        <input type="text" id="cc" name="cc" readonly class="mt-1 p-2 w-full border rounded-md focus:ring-teal-500 focus:border-teal-500" placeholder="CC">
+                        <input type="text" id="bcc" name="bcc" readonly class="mt-1 p-2 w-full border rounded-md focus:ring-teal-500 focus:border-teal-500" placeholder="BCC">
+                        <button type="button" id="email-btn" class="btn-primary text-white px-4 py-2 rounded-lg">✉️</button>
+                    </div>
+                </div>
+                <div>
+                    <label for="agenda" class="block text-sm font-medium text-slate-700">Agenda</label>
+                    <textarea id="agenda" name="agenda" rows="4" required class="mt-1 p-2 w-full border rounded-md focus:ring-teal-500 focus:border-teal-500"></textarea>
+                </div>
+                <div class="flex space-x-2">
+                    <button type="submit" class="btn-primary text-white px-4 py-2 rounded-lg">Schedule & Send</button>
+                    <button type="button" id="cancel-btn" class="btn-cancel text-white px-4 py-2 rounded-lg">Cancel Meeting</button>
+                </div>
+            </form>
         </section>
+        <aside class="calendar-container">
+            <div id='calendar'></div>
+        </aside>
     </main>
+    <div id="user-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="modal-title" class="text-lg font-bold mb-2">Select Emails</h3>
+            <div class="flex space-x-2 mb-2">
+                <input type="text" id="modal-search" placeholder="Search by department (e.g., Civil)" class="p-2 w-full border rounded-md focus:ring-teal-500 focus:border-teal-500">
+                <button type="button" id="modal-search-btn" class="btn-primary text-white px-4 py-2 rounded-lg">Search</button>
+                <button type="button" id="modal-clear-btn" class="btn-secondary text-white px-4 py-2 rounded-lg">Clear</button>
+            </div>
+            <div class="mb-2">
+                <label class="block text-sm font-medium text-slate-700">Assign to:</label>
+                <div class="flex space-x-2">
+                    <button type="button" class="category-btn" data-category="recipients">Recipients</button>
+                    <button type="button" class="category-btn" data-category="cc">CC</button>
+                    <button type="button" class="category-btn" data-category="bcc">BCC</button>
+                </div>
+            </div>
+            <div id="modal-users-list" class="max-h-48 overflow-y-auto"></div>
+            <div class="flex space-x-2 mt-4">
+                <button type="button" id="modal-close-btn" class="btn-secondary text-white px-4 py-2 rounded-lg w-full">Close</button>
+                <button type="button" id="modal-confirm-btn" class="btn-primary text-white px-4 py-2 rounded-lg w-full">Confirm</button>
+            </div>
+        </div>
+    </div>
     <footer class="bg-teal-600 text-white text-center p-4">
         <p>&copy; 2025 Construction Safety Hub. All rights reserved.</p>
     </footer>
