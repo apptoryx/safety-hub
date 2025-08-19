@@ -96,6 +96,54 @@
             background: #0D9488;
             color: white;
         }
+        .confirmation-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 30;
+            align-items: center;
+            justify-content: center;
+        }
+        .confirmation-modal.active {
+            display: flex;
+        }
+        .confirmation-content {
+            background: #fff;
+            border-radius: 0.375rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 400px;
+            padding: 1rem;
+            text-align: center;
+        }
+        .cancellation-confirmation-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 30;
+            align-items: center;
+            justify-content: center;
+        }
+        .cancellation-confirmation-modal.active {
+            display: flex;
+        }
+        .cancellation-confirmation-content {
+            background: #fff;
+            border-radius: 0.375rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 400px;
+            padding: 1rem;
+            text-align: center;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.5/dist/umd/supabase.min.js"></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
@@ -126,11 +174,19 @@
             const bccInput = document.getElementById('bcc');
             const calendarEl = document.getElementById('calendar');
             const categoryButtons = document.querySelectorAll('.category-btn');
+            const confirmationModal = document.getElementById('confirmation-modal');
+            const confirmYesBtn = document.getElementById('confirm-yes');
+            const confirmNoBtn = document.getElementById('confirm-no');
+            const cancellationConfirmationModal = document.getElementById('cancellation-confirmation-modal');
+            const cancelConfirmYesBtn = document.getElementById('cancel-confirm-yes');
+            const cancelConfirmNoBtn = document.getElementById('cancel-confirm-no');
 
             let allUsers = [];
             let selectedEmails = { recipients: [], cc: [], bcc: [] };
             let currentCategory = 'recipients';
             let selectedMeetingId = null;
+            let pendingMeetingData = null;
+            let pendingCancellationMeeting = null;
 
             // Fetch all users
             async function fetchAllUsers() {
@@ -234,7 +290,7 @@
                     currentCategory = btn.dataset.category;
                     categoryButtons.forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
-                    populateUsers(allUsers); // Refresh to reflect current category selection
+                    populateUsers(allUsers);
                 });
             });
 
@@ -333,22 +389,7 @@
                         status: 'scheduled'
                     };
 
-                    console.log('Meeting Data:', meetingData);
-
-                    const { data, error } = await supabase
-                        .from('meetings')
-                        .insert([meetingData]);
-
-                    if (error) {
-                        notification.textContent = `Error scheduling meeting: ${error.message} (Status: ${error.status})`;
-                        notification.classList.add('text-red-600');
-                        console.error('Insert Error:', error);
-                        setTimeout(() => {
-                            notification.textContent = '';
-                            notification.classList.remove('text-red-600');
-                        }, 3000);
-                        return;
-                    }
+                    pendingMeetingData = meetingData;
 
                     const subject = encodeURIComponent(`Safety Meeting: ${meetingData.title}`);
                     const body = encodeURIComponent(
@@ -367,17 +408,65 @@
                     const mailtoLink = `mailto:${selectedEmails.recipients.join(',')}?cc=${selectedEmails.cc.join(',')}&bcc=${selectedEmails.bcc.join(',')}&subject=${subject}&body=${body}`;
                     window.location.href = mailtoLink;
 
-                    notification.textContent = 'Meeting scheduled and email client opened.';
+                    confirmationModal.classList.add('active');
+                });
+
+                confirmYesBtn.addEventListener('click', async () => {
+                    if (!pendingMeetingData) {
+                        notification.textContent = 'No pending meeting to save.';
+                        notification.classList.add('text-red-600');
+                        setTimeout(() => {
+                            notification.textContent = '';
+                            notification.classList.remove('text-red-600');
+                        }, 3000);
+                        return;
+                    }
+
+                    const { data, error } = await supabase
+                        .from('meetings')
+                        .insert([pendingMeetingData]);
+
+                    if (error) {
+                        notification.textContent = `Error scheduling meeting: ${error.message} (Status: ${error.status})`;
+                        notification.classList.add('text-red-600');
+                        console.error('Insert Error:', error);
+                        setTimeout(() => {
+                            notification.textContent = '';
+                            notification.classList.remove('text-red-600');
+                        }, 3000);
+                        return;
+                    }
+
+                    notification.textContent = 'Meeting scheduled successfully.';
                     notification.classList.add('text-green-600');
                     meetingForm.reset();
                     selectedEmails = { recipients: [], cc: [], bcc: [] };
                     updateInputs();
                     calendar.refetchEvents();
+                    pendingMeetingData = null;
 
                     setTimeout(() => {
                         notification.textContent = '';
                         notification.classList.remove('text-green-600', 'text-red-600');
                     }, 3000);
+
+                    confirmationModal.classList.remove('active');
+                });
+
+                confirmNoBtn.addEventListener('click', () => {
+                    notification.textContent = 'Meeting not scheduled. Please try again.';
+                    notification.classList.add('text-yellow-600');
+                    pendingMeetingData = null;
+                    meetingForm.reset();
+                    selectedEmails = { recipients: [], cc: [], bcc: [] };
+                    updateInputs();
+
+                    setTimeout(() => {
+                        notification.textContent = '';
+                        notification.classList.remove('text-yellow-600');
+                    }, 3000);
+
+                    confirmationModal.classList.remove('active');
                 });
 
                 cancelBtn.addEventListener('click', async () => {
@@ -406,21 +495,7 @@
                         return;
                     }
 
-                    const { error: updateError } = await supabase
-                        .from('meetings')
-                        .update({ status: 'cancelled' })
-                        .eq('id', selectedMeetingId);
-
-                    if (updateError) {
-                        notification.textContent = `Error cancelling meeting: ${updateError.message} (Status: ${updateError.status})`;
-                        notification.classList.add('text-red-600');
-                        console.error('Update Error:', updateError);
-                        setTimeout(() => {
-                            notification.textContent = '';
-                            notification.classList.remove('text-red-600');
-                        }, 3000);
-                        return;
-                    }
+                    pendingCancellationMeeting = meeting;
 
                     const cancelSubject = encodeURIComponent(`Cancelled: Safety Meeting - ${meeting.title}`);
                     const cancelBody = encodeURIComponent(
@@ -439,18 +514,65 @@
                     const cancelMailtoLink = `mailto:${meeting.recipients}?cc=${meeting.cc}&bcc=${meeting.bcc}&subject=${cancelSubject}&body=${cancelBody}`;
                     window.location.href = cancelMailtoLink;
 
-                    notification.textContent = 'Meeting cancelled and cancellation email sent.';
+                    cancellationConfirmationModal.classList.add('active');
+                });
+
+                cancelConfirmYesBtn.addEventListener('click', async () => {
+                    if (!pendingCancellationMeeting) {
+                        notification.textContent = 'No pending cancellation to process.';
+                        notification.classList.add('text-red-600');
+                        setTimeout(() => {
+                            notification.textContent = '';
+                            notification.classList.remove('text-red-600');
+                        }, 3000);
+                        return;
+                    }
+
+                    const { error: updateError } = await supabase
+                        .from('meetings')
+                        .update({ status: 'cancelled' })
+                        .eq('id', pendingCancellationMeeting.id);
+
+                    if (updateError) {
+                        notification.textContent = `Error cancelling meeting: ${updateError.message} (Status: ${updateError.status})`;
+                        notification.classList.add('text-red-600');
+                        console.error('Update Error:', updateError);
+                        setTimeout(() => {
+                            notification.textContent = '';
+                            notification.classList.remove('text-red-600');
+                        }, 3000);
+                        return;
+                    }
+
+                    notification.textContent = 'Meeting cancelled successfully.';
                     notification.classList.add('text-green-600');
                     meetingForm.reset();
                     selectedMeetingId = null;
                     selectedEmails = { recipients: [], cc: [], bcc: [] };
                     updateInputs();
                     calendar.refetchEvents();
+                    pendingCancellationMeeting = null;
 
                     setTimeout(() => {
                         notification.textContent = '';
                         notification.classList.remove('text-green-600', 'text-red-600');
                     }, 3000);
+
+                    cancellationConfirmationModal.classList.remove('active');
+                });
+
+                cancelConfirmNoBtn.addEventListener('click', () => {
+                    notification.textContent = 'Cancellation aborted.';
+                    notification.classList.add('text-yellow-600');
+                    pendingCancellationMeeting = null;
+                    selectedMeetingId = null;
+
+                    setTimeout(() => {
+                        notification.textContent = '';
+                        notification.classList.remove('text-yellow-600');
+                    }, 3000);
+
+                    cancellationConfirmationModal.classList.remove('active');
                 });
             }
         });
@@ -545,6 +667,24 @@
             <div class="flex space-x-2 mt-4">
                 <button type="button" id="modal-close-btn" class="btn-secondary text-white px-4 py-2 rounded-lg w-full">Close</button>
                 <button type="button" id="modal-confirm-btn" class="btn-primary text-white px-4 py-2 rounded-lg w-full">Confirm</button>
+            </div>
+        </div>
+    </div>
+    <div id="confirmation-modal" class="confirmation-modal">
+        <div class="confirmation-content">
+            <p class="mb-4">Have you sent the invitation email? Please confirm.</p>
+            <div class="flex space-x-2 justify-center">
+                <button type="button" id="confirm-yes" class="btn-primary text-white px-4 py-2 rounded-lg">Yes</button>
+                <button type="button" id="confirm-no" class="btn-secondary text-white px-4 py-2 rounded-lg">No</button>
+            </div>
+        </div>
+    </div>
+    <div id="cancellation-confirmation-modal" class="cancellation-confirmation-modal">
+        <div class="cancellation-confirmation-content">
+            <p class="mb-4">Have you sent the cancellation email? Please confirm.</p>
+            <div class="flex space-x-2 justify-center">
+                <button type="button" id="cancel-confirm-yes" class="btn-primary text-white px-4 py-2 rounded-lg">Yes</button>
+                <button type="button" id="cancel-confirm-no" class="btn-secondary text-white px-4 py-2 rounded-lg">No</button>
             </div>
         </div>
     </div>
